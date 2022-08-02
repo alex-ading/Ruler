@@ -4,6 +4,10 @@ import { defineComponent, onMounted, reactive, ref, watch } from 'vue'
 export default defineComponent({
     name: 'Ruler',
     props: {
+        h: {
+            type: Boolean,
+            default: true
+        },
         width: {
             type: Number,
             default: 800
@@ -51,12 +55,18 @@ export default defineComponent({
         showGrid: {
             type: Boolean,
             default: true
+        },
+        ratio: {
+            type: Number,
+            default: 2
+        },
+        handleWheel: {
+            type: Function
         }
     },
     setup(props) {
         let canvas = reactive(null);
         let ctx = reactive(null);
-        let ratio = ref(2);
 
         onMounted(() => {
             canvas = document.getElementById('canvas');
@@ -83,18 +93,28 @@ export default defineComponent({
          * */
         const drawContainer = (ctx, width: number, height: number, rulerWidth: number, span: number, gap: number, rulerColor: string, spanColor: string, gapColor: string, showGrid: boolean) => {
             if (props.unit === 'mm') {
-                width = ratio.value * width;
-                height = ratio.value * height;
-                rulerWidth = ratio.value * rulerWidth;
-                span = ratio.value * span;
-                gap = ratio.value * gap;
+                width = props.ratio * width;
+                height = props.ratio * height;
+                rulerWidth = rulerWidth * 2;
+                span = props.ratio * span;
+                gap = props.ratio * gap;
             }
-            canvas.setAttribute('width', width + rulerWidth);
-            canvas.setAttribute('height', height + rulerWidth);
+            if (props.h) {
+                canvas.setAttribute('width', width + rulerWidth);
+                canvas.setAttribute('height', rulerWidth);
+            } else {
+                canvas.setAttribute('height', width + rulerWidth);
+                canvas.setAttribute('width', rulerWidth);
+            }
+
+
             console.log('drawContainer');
             ctx.beginPath();
-            drawHorizontalRuler(ctx, width, rulerWidth, span, gap, rulerColor);
-            drawVerticalRuler(ctx, height, rulerWidth, span, gap, rulerColor);
+            if (props.h) {
+                drawHorizontalRuler(ctx, width, rulerWidth, span, gap, rulerColor);
+            } else {
+                drawVerticalRuler(ctx, height, rulerWidth, span, gap, rulerColor);
+            }
             drawBorder(ctx, width, height, rulerWidth);
             if (showGrid) {
                 drawGrid(ctx, width, height, rulerWidth, span, gap, spanColor, gapColor);
@@ -120,7 +140,7 @@ export default defineComponent({
 
             for (let i = 0; i <= spanRound; i++) {
                 // 长刻度
-                let str = String(span * i / ratio.value);
+                let str = String(span * i / props.ratio);
                 ctx.fillText(str, rulerWidth + span * i + 3, rulerWidth * 0.8);
                 ctx.lineTo(rulerWidth + span * i, rulerWidth);
 
@@ -159,12 +179,11 @@ export default defineComponent({
             for (let i = 0; i <= spanRound; i++) {
                 // 长刻度
                 // ctx.save();
-                let str = String(span * i / ratio.value);
+                let str = String(span * i / props.ratio);
                 // ctx.rotate(20 * Math.PI / 180);
                 ctx.fillText(str, 0, rulerWidth + span * i - 3);
                 // ctx.restore();
-                ctx.lineTo(rulerWidth, rulerWidth + span * i);
-
+                ctx.lineTo(rulerWidth, rulerWidth + span * i)
 
                 // 中间短刻度
                 for (let j = 0; j < gapRound - 1; j++) {
@@ -258,27 +277,49 @@ export default defineComponent({
             ctx.clearRect(0, 0, width, height);
         }
 
-        // /**
-        //  * 滚动放大缩小
-        //  * 
-        //  * 
-        //  * */
-        // const zoom = function(event) {
-        //     console.log(event.wheelDelta);
-        // }
+        /**
+         * 滚动放大缩小
+         * 
+         * 
+         * */
+        const handleWheel = function(e) {
+            props.handleWheel(e);
+        }
 
         return {
-            ratio
+            handleWheel
         }
     },
     render() {
         return (
             <>
-                <div style={{
-                    width: this.$props.width * this.ratio + this.$props.rulerWidth * this.ratio + 'px',
-                    height: this.$props.height * this.ratio + this.$props.rulerWidth * this.ratio + 'px'
-                }}>
-                    <canvas id="canvas"></canvas>
+                <div
+                    style={{
+                        width: this.$props.width * this.$props.ratio + this.$props.rulerWidth * 2 + 'px',
+                        height: this.$props.height * this.$props.ratio + this.$props.rulerWidth * 2+ 'px',
+                    }}
+                    onWheel={this.handleWheel}
+                >
+
+                    {
+                        this.$props.h
+                            ? <div
+                                style={{
+                                    top: 0,
+                                    position: 'sticky'
+                                }}>
+                                <canvas id="canvas"></canvas>
+                            </div>
+                            : <div
+                                style={{
+                                    left: 0,
+                                    position: 'sticky'
+                                }}>
+                                <canvas id="canvas"></canvas>
+                            </div>
+                    }
+
+
                 </div>
             </>
         )
